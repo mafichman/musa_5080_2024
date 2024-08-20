@@ -1,7 +1,7 @@
 ---
 title: "MUSA 508 Lab 3"
-author: "Matthew Harris & Michael Fichman"
-date: "September, 2022"
+author: "Matthew Harris, Michael Fichman and Anna Duan"
+date: "August, 2024"
 output:
   html_document:
     toc: true
@@ -31,7 +31,6 @@ library(sf)
 library(gridExtra)
 library(grid)
 library(knitr)
-library(kableExtra)
 library(rmarkdown)
 ```
 
@@ -93,9 +92,11 @@ Make some simple ggplots with `geom_sf` by mapping the municipalities, the Lanca
 
 ```{r first_maps}
 ggplot()+
-  geom_sf(data = studyAreaTowns, aes(fill = MUNI))+
-  geom_sf(data = uga, fill = "transparent", color = "red")+
-  mapTheme()
+  geom_sf(data = studyAreaTowns, aes(fill = MUNI), color = "transparent", )+
+  geom_sf(data = st_union(uga), aes(color = ""), fill = "transparent")+
+  scale_color_manual(values = c("black"), name = "Urban Growth Boundary")+
+  scale_linewidth(5) +
+  theme_void()
 ```
 
 # Geoprocessing
@@ -142,10 +143,10 @@ Here is a basic plot of the buggers that we have created.
 
 ```{r buffer_plot}
 ggplot() + 
-  geom_sf(data = bothBuffers, aes(fill = Legend)) +
+  geom_sf(data = bothBuffers, aes(fill = Legend), color = "transparent") +
   scale_fill_manual(values = c("#F8766D", "#00BFC4")) + 
   labs(title = "1/8mi buffer inside & outside UGA") +
-  mapTheme()
+  theme_void()
 ```
 
 # Join the Town info to the buffers
@@ -179,18 +180,17 @@ Solution 1 depicts a map with labels and a distinct color per 'MUNI.'
 
 ```{r}
 ggplot() +
-  geom_sf(data = studyAreaTowns, fill = "black", color = "grey") +
+  geom_sf(data = studyAreaTowns, fill = "gray95", color = "gray70") +
   geom_sf(data = filter(buffersAndTowns, Legend == "Inside"), aes(fill = MUNI), 
           alpha = 0.3, color = "transparent") +
   geom_sf(data = filter(buffersAndTowns, Legend == "Outside"), aes(fill = MUNI),
           color = "transparent") +
-  scale_fill_viridis_d() +
   geom_sf_label(data = studyAreaTowns %>% 
                   group_by(MUNI) %>% 
                   summarise(), 
                 aes(label = str_remove(MUNI," TOWNSHIP")), 
                 size = 2) +
-  mapTheme() +
+  theme_void() +
   theme(
     legend.position = "none"
   )
@@ -202,17 +202,18 @@ Solution 2 displays a map with labels, but with coloring to indicate the UGB.
 
 ```{r}
 ggplot() +
-  geom_sf(data = studyAreaTowns, fill = "grey90", color = "grey") +
-  geom_sf(data = filter(buffersAndTowns, Legend == "Inside"), aes(fill = "Inside"), color = "transparent", alpha = 0.6) +
-  geom_sf(data = filter(buffersAndTowns, Legend == "Outside"), aes(fill = "Outside"), color = "transparent", alpha = 0.6) +
+  geom_sf(data = studyAreaTowns, fill = "gray95", color = "gray70") +
+  geom_sf(data = filter(buffersAndTowns, Legend == "Inside"), aes(fill = "Inside"), color = "transparent") +
+  geom_sf(data = filter(buffersAndTowns, Legend == "Outside"), aes(fill = "Outside"), color = "transparent") +
   geom_sf_label(data = studyAreaTowns %>% 
                   group_by(MUNI) %>% 
                   summarise(), 
                 aes(label = str_remove(MUNI," TOWNSHIP")), 
                 size = 2) +
-  mapTheme() +
+  labs(fill = "Buffer Section") +
+  theme_void() +
   theme(
-    legend.position = "right")
+    legend.position = c(0.8, 0.2))
 ```
 
 Continue to try and make your own with other layers!
