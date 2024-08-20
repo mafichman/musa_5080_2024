@@ -1,7 +1,7 @@
 ---
 title: "MUSA 508, Lab 5 - Spatial Machine Learning Pt. 2"
-author: "Harris, Fichman, Steif and Duan - 2024"
-date: 'August, 2024'
+author: "Harris, Fichman and Steif - 2023"
+date: '2023-09-26'
 output: html_document
 ---
 
@@ -21,7 +21,7 @@ library(jtools)     # for regression model plots
 library(broom)
 library(tufte)
 library(rmarkdown)
-library(pander)
+library(kableExtra)
 library(tidycensus)
 # functions and data directory
 root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
@@ -134,8 +134,7 @@ reg.cv
 `reg.cv` is an object that contains a data frame called `resample` with your folds and errors associated with them. You will use this to make a plot of your errors for the CV process.
 
 ```{r}
-reg.cv$resample[1:5,] %>%
-  pander()
+reg.cv$resample[1:5,]
 
 ```
 
@@ -168,11 +167,7 @@ spatialWeights.test <- nb2listw(neighborList.test, style="W")
 boston.test %>% 
   mutate(lagPriceError = lag.listw(spatialWeights.test, SalePrice.Error)) %>%
   ggplot()+
-  geom_point(aes(x =lagPriceError, y =SalePrice.Error), color = "orange") +
-  labs(title = "Spatial Lag of Sale Price Error",
-       x = "Lag of Sale Price Error",
-       y = "Sale Price Error") +
-  theme_minimal()
+  geom_point(aes(x =lagPriceError, y =SalePrice.Error))
 
 ```
 
@@ -187,13 +182,13 @@ moranTest <- moran.mc(boston.test$SalePrice.Error,
 
 ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
   geom_histogram(binwidth = 0.01) +
-  geom_vline(aes(xintercept = moranTest$statistic), colour = "orange",size=1) +
+  geom_vline(aes(xintercept = moranTest$statistic), colour = "#FA7800",size=1) +
   scale_x_continuous(limits = c(-1, 1)) +
   labs(title="Observed and permuted Moran's I",
        subtitle= "Observed Moran's I in orange",
        x="Moran's I",
        y="Count") +
-  theme_minimal()
+  plotTheme()
 
 ```
 
@@ -205,7 +200,8 @@ as.data.frame() %>%
   group_by(Name) %>%
     summarize(meanPrediction = mean(SalePrice.Predict),
               meanPrice = mean(SalePrice)) %>%
-      pander(caption = "Mean Predicted and Actual Sale Price by Neighborhood")
+      kable() %>% 
+  kable_styling()
 
 ```
 
@@ -252,7 +248,7 @@ st_drop_geometry(bothRegressions) %>%
   group_by(Regression, Variable) %>%
     summarize(meanValue = mean(Value, na.rm = T)) %>%
     spread(Variable, meanValue) %>%
-    pander(caption = "Mean Absolute Error and Absolute Percentage Error by Regression")
+    kable()
 ```
 
 ## Further examination of errors
@@ -265,13 +261,13 @@ bothRegressions %>%
     ggplot(aes(SalePrice, SalePrice.Predict)) +
   geom_point() +
   stat_smooth(aes(SalePrice, SalePrice), 
-             method = "lm", se = FALSE, size = 1, colour="orange") + 
+             method = "lm", se = FALSE, size = 1, colour="#FA7800") + 
   stat_smooth(aes(SalePrice.Predict, SalePrice), 
-              method = "lm", se = FALSE, size = 1, colour="olivedrab") +
+              method = "lm", se = FALSE, size = 1, colour="#25CB10") +
   facet_wrap(~Regression) +
   labs(title="Predicted sale price as a function of observed price",
        subtitle="Orange line represents a perfect prediction; Green line represents prediction") +
-  theme_minimal()
+  plotTheme()
 ```
 
 We can also examine the spatial pattern of errors.
@@ -284,13 +280,13 @@ st_drop_geometry(bothRegressions) %>%
   left_join(nhoods, by = c("Name" = "neighborhood")) %>%
     st_sf() %>%
     ggplot() + 
-      geom_sf(aes(fill = mean.MAPE), color = "transparent") +
-      geom_sf(data = bothRegressions, colour = "gray30", size = .5) +
+      geom_sf(aes(fill = mean.MAPE)) +
+      geom_sf(data = bothRegressions, colour = "black", size = .5) +
       facet_wrap(~Regression) +
       scale_fill_gradient(low = palette5[1], high = palette5[5],
                           name = "MAPE") +
       labs(title = "Mean test set MAPE by neighborhood") +
-      theme_void()
+      mapTheme()
 
 ```
 
@@ -311,14 +307,14 @@ tracts17 <-
          incomeContext = ifelse(Median_Income > 32322, "High Income", "Low Income"))
 
 grid.arrange(ncol = 2,
-  ggplot() + geom_sf(data = na.omit(tracts17), aes(fill = raceContext), color = "transparent") +
-    scale_fill_manual(values = c("olivedrab", "orange"), name="Race Context") +
+  ggplot() + geom_sf(data = na.omit(tracts17), aes(fill = raceContext)) +
+    scale_fill_manual(values = c("#25CB10", "#FA7800"), name="Race Context") +
     labs(title = "Race Context") +
-    theme_void() + theme(legend.position="bottom"), 
-  ggplot() + geom_sf(data = na.omit(tracts17), aes(fill = incomeContext), color = "transparent") +
-    scale_fill_manual(values = c("olivedrab", "orange"), name="Income Context") +
+    mapTheme() + theme(legend.position="bottom"), 
+  ggplot() + geom_sf(data = na.omit(tracts17), aes(fill = incomeContext)) +
+    scale_fill_manual(values = c("#25CB10", "#FA7800"), name="Income Context") +
     labs(title = "Income Context") +
-    theme_void() + theme(legend.position="bottom"))
+    mapTheme() + theme(legend.position="bottom"))
 
 ```
 
@@ -329,5 +325,5 @@ st_join(bothRegressions, tracts17) %>%
   summarize(mean.MAPE = scales::percent(mean(SalePrice.APE, na.rm = T))) %>%
   st_drop_geometry() %>%
   spread(incomeContext, mean.MAPE) %>%
-  pander(caption = "Test set MAPE by neighborhood income context")
+  kable(caption = "Test set MAPE by neighborhood income context")
 ```

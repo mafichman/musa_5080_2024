@@ -1,7 +1,6 @@
 ---
 title: "Lab 1 - Learning Tidy R With Census Data"
-author: "Michael Fichman, Matt Harris & Anna Duan"
-date: "August, 2024"
+author: "Michael Fichman & Matt Harris"
 output:
   html_document:
     toc: true
@@ -13,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(knitr)
-library(pander)
+library(kableExtra)
 library(rmarkdown)
 ```
 
@@ -39,7 +38,7 @@ This exercise consists of a few classic planner's tasks:
 
 ## Install Libraries
 
-If you haven't installed either `tidyverse`, `tidycensus`, `pander`, or `sf`, use the `install.packages` command like so:
+If you haven't installed either `tidyverse`, `tidycensus`, or `sf` use the `install.packages` command like so:
 
 (If you have them installed, you can skip this step)
 
@@ -47,7 +46,6 @@ If you haven't installed either `tidyverse`, `tidycensus`, `pander`, or `sf`, us
 install.packages('tidyverse')
 install.packages('tidycensus')
 install.packages('sf')
-install.packages('pander')
 ```
 
 Once the packages are installed, you must load them using hte `library` command so that they are active in your environment.
@@ -56,7 +54,6 @@ Once the packages are installed, you must load them using hte `library` command 
 library(tidyverse)
 library(tidycensus)
 library(sf)
-library(pander)
 ```
 
 ## Census API Key
@@ -66,7 +63,7 @@ You will need a "key" to access the Census API. You can find one at [their websi
 Paste it into the code block below:
 
 ```{r load_key, warning = FALSE, eval = FALSE}
-census_api_key("d9ebfd04caa0138647fbacd94c657cdecbf705e9", overwrite = TRUE)
+census_api_key("YOUR KEY GOES HERE", overwrite = TRUE)
 ```
 
 ## Load census data dictionaries
@@ -253,18 +250,15 @@ Base R has a graphics package - we can look at the distribution of the data, ins
 hist(allACS$change_med_HH_Income)
 ```
 
-We can also use the dynamic graphics package from the tidyverse, `ggplot2` to make some more detailed histograms. We have lots of aesthetic options here.
+We can also use the dynamic graphics package from the tidyverse, `gglot2` to make some more detailed histograms. We have lots of aesthetic options here.
 
 Make your own by changing the terms in the ggplot call - use a different variable and change the axis titles. You see we can build a nice plot with different elements using building blocks like `geom_histogram`.
 
 Notice that the `+` sign does the same work in ggplot that the `%>%` does in tidy code.
 
-Note also that we use `theme_minimal` to remove the gray background and gridlines from the plot, making it easier to read. `ggplot2` has a lot of presets to make your plots look nice. Experiment also with `theme_bw` and `theme_classic`.
-
 ```{r ggplot_histogram_simple, warning = FALSE, cache = TRUE, message = FALSE}
 ggplot(allACS) +
-  geom_histogram(aes(change_med_HH_Income)) +
-  theme_minimal()
+  geom_histogram(aes(change_med_HH_Income))
   
 ```
 
@@ -277,8 +271,7 @@ ggplot(allACS)+
     title = "Change in Philadelphia HH median income by tract, 2016-2020",
     caption = "Data: US Census Bureau, ACS 5-year estimates",
     x="Change in Med HH Income (2020 dollars)", 
-       y="Number of tracts") +
-  theme_minimal()
+       y="Number of tracts")
   
 ```
 
@@ -288,16 +281,10 @@ Wow, there are some tracts with a huge increase in Med HH Income! What is the si
 
 The `summarize` function from the `dplyr` library is very powerful - you can use these summary functions in the context of a table - this is akin to "pivot tables" and other tools from Excel - but this is incredibly simple. You could create a table of statistics and easily export it for use in a report.
 
-`Pander` is a package that makes it easy to render tables in RMarkdown. Below we see the mean and median change in median household income in Philadelphia tracts from 2016-2020.
-
 ```{r summaryTable, cache = TRUE}
-
-
 summaryTable <- allACS %>%
   summarize(mean_change_HH_Income = mean(change_med_HH_Income, na.rm = TRUE),
             med_change_HH_Income = median(change_med_HH_Income, na.rm = TRUE))
-
-pander(summaryTable)
 ```
 
 
@@ -337,8 +324,6 @@ summaryTable2 <- allACS %>%
   group_by(mtAiry) %>%
   summarize(mean_change_HH_Income = mean(change_med_HH_Income, na.rm = TRUE),
             med_change_HH_Income = median(change_med_HH_Income, na.rm = TRUE))
-
-pander(summaryTable2)
 ```
 
 ## Graphic comparisons Using ggplot2
@@ -358,8 +343,7 @@ ggplot(allACS)+
     caption = "Data: US Census Bureau, ACS 5-year estimates",
     x="Change in Med HH Income (2020 dollars)", 
        y="Number of tracts")+
-  facet_wrap(~mtAiry, scales = "free") + 
-  theme_minimal()
+  facet_wrap(~mtAiry, scales = "free")
   
 ```
 
@@ -384,8 +368,7 @@ ggplot(allACS)+
     subtitle = "All figures in 2020 dollars",
     caption = "Data: US Census Bureau, ACS 5-year estimates",
     x="Med HH Income 2016 ($)", 
-    y="Med HH Income 2020 ($)") +
-  theme_minimal()
+    y="Med HH Income 2020 ($)")
   
 ```
 
@@ -411,8 +394,7 @@ ggplot(allACS)+
     subtitle = "All figures in 2020 dollars",
     caption = "Data: US Census Bureau, ACS 5-year estimates",
     x="Pct. Residents Identifying as 'White Only'", 
-    y="Med HH Income 2020 ($)") +
-  theme_minimal()
+    y="Med HH Income 2020 ($)")
   
 ```
 
@@ -472,8 +454,6 @@ Now we can create a a `geom_sf` which will allow you to map `sf` objects in `ggp
 
 Notice we create a `geom_sf` which symbologizes our data and then another which is designed to represent the boundary of Mt. Airy.
 
-We also use `theme_void` to remove the background and gridlines from our map. Note that this is different from the `theme_minimal` we used before - for maps, we can get rid of everything in the background, including the gridlines and axis ticks. In general, `theme_void` is a good choice for maps, while `theme_minimal` preserves the axis ticks and labels needed in plots. 
-
 In our next lesson, we will do more detailed cartography and spatial analysis using ggplot - using custom color palettes and more.
 
 ```{r ggplot_geom_sf, warning = FALSE, cache = TRUE}
@@ -488,8 +468,7 @@ ggplot()+
   labs(
     title = "Percentage of those identifying as 'white only' by tract",
     subtitle = "",
-    caption = "Data: US Census Bureau, ACS 5-year estimates") +
-  theme_void()
+    caption = "Data: US Census Bureau, ACS 5-year estimates")
   
 ```
 
