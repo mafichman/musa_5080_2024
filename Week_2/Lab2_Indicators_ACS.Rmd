@@ -31,7 +31,7 @@ what makes a good indicator:
     the indicator's significance and keeps them engaged in the analysis.
 
 -   A *relative* indicator draws a contrast. "How can New York City
-    passenger rail, with the most trips, still loose more money than
+    passenger rail, with the most trips, still lose more money than
     each of the next ten largest cities?" Contextualizing an indicator
     with a relevant comparison makes for greater impact.
 
