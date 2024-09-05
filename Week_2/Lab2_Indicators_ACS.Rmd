@@ -12,6 +12,20 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Learning Goals for Today
+
+In this lab we will:
+
+1.  Look at examples of "wide" and "long" data.
+
+2.  Use {tidycensus} to gather ACS data
+
+3.  Use the {sf} package for geospatial operations such as **union**, **intersection** and **buffer**
+
+4.  Use maps and tables to analyze change over time using the products of the geospatial operations
+    
+This lab (and this week's Github folder) is the "pantry" with all the ingredients for your second assignment, where you will adapt this analysis to analyze willingness to pay for transit in a separate city. Your job is to take this code base, and feed new census data and transit stops to it.
+
 ## Why Start With Indicators?
 
 from Steif (2021), [Section
@@ -38,23 +52,11 @@ This is an indicator - a stylized fact that gives simple insight into a complica
     motivate a more robust research agenda and ultimately, more applied
     analytics.
 
-In this lab we will:
-
-1.  Look at examples of "wide" and "long" data.
-
-2.  Use {tidycensus} to gather ACS data for two different years
-
-3.  Use the {sf} package for geospatial operations such as **union**,
-    **intersection** and **buffer**
-
-4.  Use maps and tables to analyze change over time *given* the products
-    of the geospatial operations
-    
-This lab is the "pantry" with all the ingredients for your second assignment, where you will adapt this analysis to analyze willingness to pay for transit in a separate city. Your job is to take this code base, and feed new census data and transit stops to it.
-
 ### Load packages and functions
 
-There is a new wrinkle here - we use the `source` command to bring in customized functions from our text book.
+We begin by loading packages, loading our API key etc.,
+
+There are a few new wrinkles here - we use the `source` command to bring in customized functions from our text book, we set some `options` for scientific notation (`scipen`), and some `options` for `tigris` data to be imported in `sf` form (you might find that useful in your assignment). We also specify a 5 color palette called `palette5` - you might want to make your own for your work if you like different colors.
 
 ```{r setup_packages, warning = FALSE, message = FALSE}
 # Load Libraries
@@ -72,6 +74,7 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 palette5 <- c("#f0f9e8","#bae4bc","#7bccc4","#43a2ca","#0868ac")
 ```
 
+
 ```{r load_key, warning = FALSE, eval = FALSE}
 census_api_key("d9ebfd04caa0138647fbacd94c657cdecbf705e9", overwrite = TRUE)
 ```
@@ -80,7 +83,7 @@ census_api_key("d9ebfd04caa0138647fbacd94c657cdecbf705e9", overwrite = TRUE)
 
 Notice this returns "long" data - let's examine it using `glimpse`.
 
-What's this CRS? Check out spatialreference.com and look it up!
+What's this CRS? Check out [spatialreference.com](spatialreference.com) and look it up!
 
 ```{r results='hide'}
 tracts16 <-  
@@ -102,13 +105,11 @@ Take a moment to think about the *shape* of data. The gif below is a visualizati
 
 ![wide vs long
 data](https://github.com/mafichman/musa_5080_2024/blob/main/Week_2/images/tidyr-spread-gather.gif?raw=true)
+
 Image: Garrick Buie
 
-By default, `get_acs()` returns **long** data where the `GEOID` is
-repeated for each of the acs `variables` requested. The `output`
-argument in `get_acs()` can be used to return data in a **wide** format.
-Or we can do that ourselves with the `spread()` and `gather()`
-functions.
+By default, `get_acs()` returns **long** data where the `GEOID` is repeated for each of the acs `variables` requested. The `output` argument in `get_acs()` can be used to return data in a **wide** format. Or we can do that ourselves with the `spread()` and `gather()` functions.
+
 
 *Why do you think this data type might be useful? Can you name a couple of examples?*
 
@@ -529,7 +530,8 @@ allTracts.Summary %>%
   facet_wrap(~Variable, scales = "free", ncol=5) +
   scale_fill_manual(values = c("#bae4bc", "#0868ac")) +
   labs(title = "Indicator differences across time and space") +
-  plotTheme() + theme(legend.position="bottom")
+  plotTheme() + 
+  theme(legend.position="bottom")
 ```
 
 #### Examining three submarkets
@@ -559,6 +561,7 @@ threeMarkets <- rbind(el, broad.st, centerCity)
 
 You can then bind these buffers to tracts and map them or make small
 multiple plots
+
 
 ```{r}
 allTracts.threeMarkets <-
