@@ -121,7 +121,6 @@ glimpse(tracts16)
 We create a new data frame consisting only of population
 
 ```{r}
-
 totalPop16 <-
   tracts16 %>%
   filter(variable == "B25026_001")
