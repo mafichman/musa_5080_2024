@@ -79,10 +79,13 @@ census_api_key("YOUR KEY GOES HERE", overwrite = TRUE)
 Notice this returns "long" data - let's examine it
 
 ```{r results='hide'}
-tracts16 <-  
+tracts16_long <-  
   get_acs(geography = "tract",
           variables = c("B25026_001E","B02001_002E",
-                        "B15001_050E","B15001_009E",
+                        "B01001_011E","B01001_012E","B01001_013E","B01001_014E","B01001_015E","B01001_016E","B01001_017E","B01001_018E","B01001_019E","B01001_020E","B01001_021E","B01001_022E","B01001_023E","B01001_024E","B01001_025E",
+                        "B01001_035E","B01001_036E","B01001_037E","B01001_038E","B01001_039E","B01001_040E","B01001_041E","B01001_042E","B01001_043E","B01001_044E","B01001_045E","B01001_046E","B01001_047E","B01001_048E","B01001_049E",
+                        "B15001_017E","B15001_025E","B15001_033E","B15001_041E",
+                        "B15001_058E","B15001_066E","B15001_074E","B15001_082E",
                         "B19013_001E", "B25058_001E",
                         "B06012_002E"), 
           year=2016, state=42,
@@ -115,14 +118,14 @@ functions.
 Let's examine each variable and the elements of an sf object
 
 ```{r}
-glimpse(tracts16)
+glimpse(tracts16_long)
 ```
 
 We create a new data frame consisting only of population
 
 ```{r}
 totalPop16 <-
-  tracts16 %>%
+  tracts16_long %>%
   filter(variable == "B25026_001")
 ```
 
@@ -193,14 +196,21 @@ frames.
 ```{r}
 # Let's "spread" the data into wide form
 
-tracts16 <- 
-  tracts16 %>%
+tracts16_wide <- 
+  tracts16_long %>%
   dplyr::select( -NAME, -moe) %>%
   spread(key = variable, value = estimate) %>%
   rename(TotalPop = B25026_001, 
+         # TotalFPop_25plus = ,
          Whites = B02001_002,
-         FemaleBachelors = B15001_050, 
-         MaleBachelors = B15001_009,
+         FBach25_34 = B15001_058,
+         FBach35_44 = B15001_066,
+         FBach45_64 = B15001_074,
+         FBach65plus = B15001_082,
+         MBach25_34 = B15001_017,
+         MBach35_44 = B15001_025,
+         MBach45_64 = B15001_033,
+         MBach65plus = B15001_041,
          MedHHInc = B19013_001, 
          MedRent = B25058_001,
          TotalPoverty = B06012_002)
@@ -209,12 +219,14 @@ tracts16 <-
 # Let's create new rate variables using mutate
 
 tracts16 <- 
-  tracts16 %>%
+  tracts16_wide %>%
   mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
+         FemaleBachelors = FBach25_34 + FBach35_44 + FBach45_64 + FBach65plus,
+         MaleBachelors = MBach25_34 + MBach35_44 + MBach45_64 + MBach65plus,
          pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop), 0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2016") %>%
-  dplyr::select(-Whites,-FemaleBachelors,-MaleBachelors,-TotalPoverty)
+  dplyr::select(GEOID,TotalPop,MedHHInc,MedRent,pctWhite,pctBachelors,pctPoverty,year)
 ```
 
 Tracts 2016 is now complete. Let's grab 2020 tracts and do the same
@@ -233,25 +245,34 @@ into one continuous sequence of code using the "pipe" operator `%>%`.
 tracts20 <- 
   get_acs(geography = "tract", 
           variables = c("B25026_001E","B02001_002E",
-                        "B15001_050E","B15001_009E",
-                        "B19013_001E","B25058_001E",
+                        "B15001_017E","B15001_025E","B15001_033E","B15001_041E",
+                        "B15001_058E","B15001_066E","B15001_074E","B15001_082E",
+                        "B19013_001E", "B25058_001E",
                         "B06012_002E"), 
           year=2020, state=42, county=101, 
           geometry=TRUE, output="wide") %>%
   st_transform('ESRI:102728') %>%
   rename(TotalPop = B25026_001E, 
          Whites = B02001_002E,
-         FemaleBachelors = B15001_050E, 
-         MaleBachelors = B15001_009E,
+         FBach25_34 = B15001_058E,
+         FBach35_44 = B15001_066E,
+         FBach45_64 = B15001_074E,
+         FBach65plus = B15001_082E,
+         MBach25_34 = B15001_017E,
+         MBach35_44 = B15001_025E,
+         MBach45_64 = B15001_033E,
+         MBach65plus = B15001_041E,
          MedHHInc = B19013_001E, 
          MedRent = B25058_001E,
          TotalPoverty = B06012_002E) %>%
   dplyr::select(-NAME, -starts_with("B")) %>%
   mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
+         FemaleBachelors = FBach25_34 + FBach35_44 + FBach45_64 + FBach65plus,
+         MaleBachelors = MBach25_34 + MBach35_44 + MBach45_64 + MBach65plus,
          pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop),0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2020") %>%
-  dplyr::select(-Whites, -FemaleBachelors, -MaleBachelors, -TotalPoverty) 
+  dplyr::select(GEOID,TotalPop,MedHHInc,MedRent,pctWhite,pctBachelors,pctPoverty,year) 
 ```
 
 To combine the 2016 and 2020 data into the same data frame we use
