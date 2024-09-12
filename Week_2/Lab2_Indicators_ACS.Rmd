@@ -1,7 +1,7 @@
 ---
 title: "Lab 2: Why Start With Indicators?"
-author: "Matt Harris & Michael Fichman"
-date: '2024-09-05'
+author: "Matt Harris, Michael Fichman, Anna Duan, & Akira Di Sandro"
+date: '2024-09-12'
 output: html_document
 editor_options: 
   markdown: 
@@ -106,7 +106,6 @@ Take a moment to think about the *shape* of data. The gif below is a visualizati
 
 *Exercise - stare hypnotically at this viz for a bit*
 
-<<<<<<< HEAD
 By default, `get_acs()` returns **long** data where the `GEOID` is
 repeated for each of the acs `variables` requested. The `output`
 argument in `get_acs()` can be used to return data in a **wide** format.
@@ -126,12 +125,11 @@ totalPop16 <-
   tracts16_long %>%
   filter(variable == "B25026_001")
 ```
-=======
+
 ![wide vs long
 data](https://github.com/mafichman/musa_5080_2024/blob/main/Week_2/images/tidyr-spread-gather.gif?raw=true)
 
 Image: Garrick Buie
->>>>>>> 1d70903cf412064d0765d0636312f9ad1285c256
 
 By default, `get_acs()` returns **long** data where the `GEOID` is repeated for each of the acs `variables` requested. The `output` argument in `get_acs()` can be used to return data in a **wide** format. Or we can do that ourselves with the `spread()` and `gather()` functions.
 
@@ -154,7 +152,7 @@ Plot 1:
 
 ```{r}
 ggplot() +
-  geom_sf(data = tracts16 %>% 
+  geom_sf(data = tracts16_long %>% 
             filter(variable == "B25026_001"), 
           aes(fill = estimate)) +
   theme(
@@ -166,7 +164,7 @@ Plot 2:
 
 ```{r}
   ggplot() +
-  geom_sf(data = tracts16 %>% 
+  geom_sf(data = tracts16_long %>% 
             filter(variable == "B25026_001"),
           aes(fill = q5(estimate))) +
   theme(plot.title = element_text(size=22)) 
@@ -176,7 +174,7 @@ Plot 3:
 
 ```{r}
 ggplot() +
-  geom_sf(data = tracts16 %>% 
+  geom_sf(data = tracts16_long %>% 
             filter(variable == "B25026_001"),
           aes(fill = q5(estimate))) +
   scale_fill_manual(values = palette5,
@@ -190,11 +188,11 @@ Plot 4:
 
 ```{r}
 ggplot() +
-  geom_sf(data = tracts16 %>% 
+  geom_sf(data = tracts16_long %>% 
             filter(variable == "B25026_001"), 
           aes(fill = q5(estimate))) +
   scale_fill_manual(values = palette5,
-                    labels = qBr(tracts16 %>% 
+                    labels = qBr(tracts16_long %>% 
             filter(variable == "B25026_001"), "estimate"),
                     name = "Population\n(Quintile Breaks)") +
   labs(title = "Total Population", subtitle = "Philadelphia; 2016") +
@@ -208,19 +206,43 @@ Here we will modify the 2016 ACS by using `spread()` to widen the data  - each c
 
 We will use `rename()` to give sensible names to the columns and we will use `mutate()` to make new features out of the existing columns. These are all `dplyr` "verbs" we saw in Lab 1, except here we are doing it on {sf} spatial data frames.
 
-<<<<<<< HEAD
+```{r}
 tracts16_wide <- 
   tracts16_long %>%
-=======
-```{r}
-tracts16 <- 
-  tracts16 %>%
->>>>>>> 1d70903cf412064d0765d0636312f9ad1285c256
   dplyr::select( -NAME, -moe) %>%
   spread(key = variable, value = estimate) %>%
   rename(TotalPop = B25026_001, 
-         # TotalFPop_25plus = ,
          Whites = B02001_002,
+         MPop25_29 = B01001_011,
+         MPop30_34 = B01001_012,
+         MPop35_39 = B01001_013,
+         MPop40_44 = B01001_014,
+         MPop45_49 = B01001_015,
+         MPop50_54 = B01001_016,
+         MPop55_59 = B01001_017,
+         MPop60_61 = B01001_018,
+         MPop62_64 = B01001_019,
+         MPop65_66 = B01001_020,
+         MPop67_69 = B01001_021,
+         MPop70_74 = B01001_022,
+         MPop75_79 = B01001_023,
+         MPop80_84 = B01001_024,
+         MPop85_plus = B01001_025,
+         FPop25_29 = B01001_035,
+         FPop30_34 = B01001_036,
+         FPop35_39 = B01001_037,
+         FPop40_44 = B01001_038,
+         FPop45_49 = B01001_039,
+         FPop50_54 = B01001_040,
+         FPop55_59 = B01001_041,
+         FPop60_61 = B01001_042,
+         FPop62_64 = B01001_043,
+         FPop65_66 = B01001_044,
+         FPop67_69 = B01001_045,
+         FPop70_74 = B01001_046,
+         FPop75_79 = B01001_047,
+         FPop80_84 = B01001_048,
+         FPop85_plus = B01001_049,
          FBach25_34 = B15001_058,
          FBach35_44 = B15001_066,
          FBach45_64 = B15001_074,
@@ -240,9 +262,12 @@ Let's create new rate variables using mutate..
 tracts16 <- 
   tracts16_wide %>%
   mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
+         TotalMPop25plus = MPop25_29 + MPop30_34 + MPop35_39 + MPop40_44 + MPop45_49 + MPop50_54 + MPop55_59 + MPop60_61 + MPop62_64 + MPop65_66 + MPop67_69 + MPop70_74 + MPop75_79 + MPop80_84 + MPop85_plus,
+         TotalFPop25plus = FPop25_29 + FPop30_34 + FPop35_39 + FPop40_44 + FPop45_49 + FPop50_54 + FPop55_59 + FPop60_61 + FPop62_64 + FPop65_66 + FPop67_69 + FPop70_74 + FPop75_79 + FPop80_84 + FPop85_plus,
+         TotalPop25plus = TotalMPop25plus + TotalFPop25plus,
          FemaleBachelors = FBach25_34 + FBach35_44 + FBach45_64 + FBach65plus,
          MaleBachelors = MBach25_34 + MBach35_44 + MBach45_64 + MBach65plus,
-         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop), 0),
+         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop25plus), 0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2016") %>%
   dplyr::select(GEOID,TotalPop,MedHHInc,MedRent,pctWhite,pctBachelors,pctPoverty,year)
@@ -258,10 +283,12 @@ Notice that we are getting "wide" data here in the first place. This saves us th
 tracts20 <- 
   get_acs(geography = "tract", 
           variables = c("B25026_001E","B02001_002E",
-                        "B15001_017E","B15001_025E","B15001_033E","B15001_041E",
-                        "B15001_058E","B15001_066E","B15001_074E","B15001_082E",
-                        "B19013_001E", "B25058_001E",
-                        "B06012_002E"), 
+  "B01001_011E","B01001_012E","B01001_013E","B01001_014E","B01001_015E","B01001_016E","B01001_017E","B01001_018E","B01001_019E","B01001_020E","B01001_021E","B01001_022E","B01001_023E","B01001_024E","B01001_025E",
+  "B01001_035E","B01001_036E","B01001_037E","B01001_038E","B01001_039E","B01001_040E","B01001_041E","B01001_042E","B01001_043E","B01001_044E","B01001_045E","B01001_046E","B01001_047E","B01001_048E","B01001_049E",
+  "B15001_017E","B15001_025E","B15001_033E","B15001_041E",
+  "B15001_058E","B15001_066E","B15001_074E","B15001_082E",
+  "B19013_001E", "B25058_001E",
+  "B06012_002E"), 
           year=2020, 
           state=42, 
           county=101, 
@@ -270,6 +297,36 @@ tracts20 <-
   st_transform('ESRI:102728') %>%
   rename(TotalPop = B25026_001E, 
          Whites = B02001_002E,
+         MPop25_29 = B01001_011E,
+         MPop30_34 = B01001_012E,
+         MPop35_39 = B01001_013E,
+         MPop40_44 = B01001_014E,
+         MPop45_49 = B01001_015E,
+         MPop50_54 = B01001_016E,
+         MPop55_59 = B01001_017E,
+         MPop60_61 = B01001_018E,
+         MPop62_64 = B01001_019E,
+         MPop65_66 = B01001_020E,
+         MPop67_69 = B01001_021E,
+         MPop70_74 = B01001_022E,
+         MPop75_79 = B01001_023E,
+         MPop80_84 = B01001_024E,
+         MPop85_plus = B01001_025E,
+         FPop25_29 = B01001_035E,
+         FPop30_34 = B01001_036E,
+         FPop35_39 = B01001_037E,
+         FPop40_44 = B01001_038E,
+         FPop45_49 = B01001_039E,
+         FPop50_54 = B01001_040E,
+         FPop55_59 = B01001_041E,
+         FPop60_61 = B01001_042E,
+         FPop62_64 = B01001_043E,
+         FPop65_66 = B01001_044E,
+         FPop67_69 = B01001_045E,
+         FPop70_74 = B01001_046E,
+         FPop75_79 = B01001_047E,
+         FPop80_84 = B01001_048E,
+         FPop85_plus = B01001_049E,
          FBach25_34 = B15001_058E,
          FBach35_44 = B15001_066E,
          FBach45_64 = B15001_074E,
@@ -282,13 +339,16 @@ tracts20 <-
          MedRent = B25058_001E,
          TotalPoverty = B06012_002E) %>%
   dplyr::select(-NAME, -starts_with("B")) %>%
-  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
+  mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
+         TotalMPop25plus = MPop25_29 + MPop30_34 + MPop35_39 + MPop40_44 + MPop45_49 + MPop50_54 + MPop55_59 + MPop60_61 + MPop62_64 + MPop65_66 + MPop67_69 + MPop70_74 + MPop75_79 + MPop80_84 + MPop85_plus,
+         TotalFPop25plus = FPop25_29 + FPop30_34 + FPop35_39 + FPop40_44 + FPop45_49 + FPop50_54 + FPop55_59 + FPop60_61 + FPop62_64 + FPop65_66 + FPop67_69 + FPop70_74 + FPop75_79 + FPop80_84 + FPop85_plus,
+         TotalPop25plus = TotalMPop25plus + TotalFPop25plus,
          FemaleBachelors = FBach25_34 + FBach35_44 + FBach45_64 + FBach65plus,
          MaleBachelors = MBach25_34 + MBach35_44 + MBach45_64 + MBach65plus,
-         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop),0),
+         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop25plus), 0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2020") %>%
-  dplyr::select(GEOID,TotalPop,MedHHInc,MedRent,pctWhite,pctBachelors,pctPoverty,year) 
+  dplyr::select(GEOID,TotalPop,MedHHInc,MedRent,pctWhite,pctBachelors,pctPoverty,year)
 ```
 
 To combine the 2016 and 2020 data into the same data frame we use `rbind()`. The "r" in `rbind()` stands for "row". So this function "binds rows of two or more data frames". Similarity the `cbind()` function binds columns of data frames, but that function is not used in this lab.
@@ -296,7 +356,6 @@ To combine the 2016 and 2020 data into the same data frame we use `rbind()`. The
 *What is the value of combining data in this structural form??*
 
 ```{r}
-
 allTracts <- rbind(tracts16,tracts20)
 
 ```
@@ -328,7 +387,6 @@ septaStops <-
 Let's visualize it
 
 ```{r}
-
 ggplot() + 
   geom_sf(data=st_union(tracts16)) +
   geom_sf(data=septaStops, 
