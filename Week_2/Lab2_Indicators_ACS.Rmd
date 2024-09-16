@@ -88,8 +88,8 @@ What's this CRS? Check out [spatialreference.com](spatialreference.com) and look
 ```{r results='hide'}
 tracts16 <-  
   get_acs(geography = "tract",
-          variables = c("B25026_001E","B02001_002E",
-                        "B15001_050E","B15001_009E",
+          variables = c("B01003_001E","B02001_002E",
+                        "B07009_005E",
                         "B19013_001E", "B25058_001E",
                         "B06012_002E"), 
           year=2016, state=42,
@@ -115,7 +115,7 @@ By default, `get_acs()` returns **long** data where the `GEOID` is repeated for 
 
 ### Using ggplot to map census data with {sf} and quantile symbologies
 
-*Exercise: Let's make a few plots by filtering `B25026_001` within a ggplot statement and visualizing it. Each plot adds more and more nuance and information. Run the code, and examine each to see what we've added each time.*
+*Exercise: Let's make a few plots by filtering `B01003_001` within a ggplot statement and visualizing it. Each plot adds more and more nuance and information. Run the code, and examine each to see what we've added each time.*
 
 We include a couple of custom functions from our textbook:
 
@@ -130,7 +130,7 @@ Plot 1:
 ```{r}
 ggplot() +
   geom_sf(data = tracts16 %>% 
-            filter(variable == "B25026_001"), 
+            filter(variable == "B01003_001"), 
           aes(fill = estimate)) +
   theme(
     plot.title = element_text(size=22)
@@ -142,7 +142,7 @@ Plot 2:
 ```{r}
   ggplot() +
   geom_sf(data = tracts16 %>% 
-            filter(variable == "B25026_001"),
+            filter(variable == "B01003_001"),
           aes(fill = q5(estimate))) +
   theme(plot.title = element_text(size=22)) 
 ```
@@ -152,11 +152,11 @@ Plot 3:
 ```{r}
 ggplot() +
   geom_sf(data = tracts16 %>% 
-            filter(variable == "B25026_001"),
+            filter(variable == "B01003_001"),
           aes(fill = q5(estimate))) +
   scale_fill_manual(values = palette5,
                     labels = qBr(tracts16 %>% 
-            filter(variable == "B25026_001"), "estimate"),
+            filter(variable == "B01003_001"), "estimate"),
                     name = "Total\nPopluation\n(Quintile Breaks)") +
   theme(plot.title = element_text(size=22))
 ```
@@ -166,11 +166,11 @@ Plot 4:
 ```{r}
 ggplot() +
   geom_sf(data = tracts16 %>% 
-            filter(variable == "B25026_001"), 
+            filter(variable == "B01003_001"), 
           aes(fill = q5(estimate))) +
   scale_fill_manual(values = palette5,
                     labels = qBr(tracts16 %>% 
-            filter(variable == "B25026_001"), "estimate"),
+            filter(variable == "B01003_001"), "estimate"),
                     name = "Population\n(Quintile Breaks)") +
   labs(title = "Total Population", subtitle = "Philadelphia; 2016") +
   mapTheme() + 
@@ -188,10 +188,9 @@ tracts16 <-
   tracts16 %>%
   dplyr::select( -NAME, -moe) %>%
   spread(key = variable, value = estimate) %>%
-  rename(TotalPop = B25026_001, 
+  rename(TotalPop = B01003_001, 
          Whites = B02001_002,
-         FemaleBachelors = B15001_050, 
-         MaleBachelors = B15001_009,
+         Tot_Bachelors = B07009_005,
          MedHHInc = B19013_001, 
          MedRent = B25058_001,
          TotalPoverty = B06012_002)
@@ -203,10 +202,10 @@ Let's create new rate variables using mutate..
 tracts16 <- 
   tracts16 %>%
   mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop, 0),
-         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop), 0),
+         pctBachelors = ifelse(TotalPop > 0, (Tot_Bachelors / TotalPop), 0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2016") %>%
-  dplyr::select(-Whites,-FemaleBachelors,-MaleBachelors,-TotalPoverty)
+  dplyr::select(-Whites,-Tot_Bachelors,-TotalPoverty)
 ```
 
 Tracts 2016 is now complete. Let's grab 2020 tracts in "wide" format and do the same renaming.
@@ -218,9 +217,10 @@ Notice that we are getting "wide" data here in the first place. This saves us th
 ```{r results='hide'}
 tracts20 <- 
   get_acs(geography = "tract", 
-          variables = c("B25026_001E","B02001_002E",
-                        "B15001_050E","B15001_009E",
-                        "B19013_001E","B25058_001E",
+          variables = c("B01003_001E","B02001_002E",
+                        "B07009_005E",
+                        "B19013_001E",
+                        "B25058_001E",
                         "B06012_002E"), 
           year=2020, 
           state=42, 
@@ -228,19 +228,18 @@ tracts20 <-
           geometry=TRUE, 
           output="wide") %>%
   st_transform('ESRI:102728') %>%
-  rename(TotalPop = B25026_001E, 
+  rename(TotalPop = B01003_001E, 
          Whites = B02001_002E,
-         FemaleBachelors = B15001_050E, 
-         MaleBachelors = B15001_009E,
+         Tot_Bachelors = B07009_005E,
          MedHHInc = B19013_001E, 
          MedRent = B25058_001E,
          TotalPoverty = B06012_002E) %>%
   dplyr::select(-NAME, -starts_with("B")) %>%
   mutate(pctWhite = ifelse(TotalPop > 0, Whites / TotalPop,0),
-         pctBachelors = ifelse(TotalPop > 0, ((FemaleBachelors + MaleBachelors) / TotalPop),0),
+         pctBachelors = ifelse(TotalPop > 0, Tot_Bachelors / TotalPop ,0),
          pctPoverty = ifelse(TotalPop > 0, TotalPoverty / TotalPop, 0),
          year = "2020") %>%
-  dplyr::select(-Whites, -FemaleBachelors, -MaleBachelors, -TotalPoverty) 
+  dplyr::select(-Whites, -Tot_Bachelors, -TotalPoverty) 
 ```
 
 To combine the 2016 and 2020 data into the same data frame we use `rbind()`. The "r" in `rbind()` stands for "row". So this function "binds rows of two or more data frames". Similarity the `cbind()` function binds columns of data frames, but that function is not used in this lab.
