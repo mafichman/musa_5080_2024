@@ -150,7 +150,7 @@ bothBuffers <- rbind(insideBuffer, outsideBuffer)
 
 # Map the buffers
 
-Here is a basic plot of the buggers that we have created.
+Here is a basic plot of the buffers that we have created.
 
 ```{r buffer_plot}
 ggplot() + 

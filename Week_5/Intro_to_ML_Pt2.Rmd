@@ -1,6 +1,6 @@
 ---
 title: "MUSA 508, Lab 5 - Spatial Machine Learning Pt. 2"
-author: "Harris, Fichman, Steif and Duan - 2024"
+author: "Harris, Fichman, Steif - 2024"
 date: 'August, 2024'
 output: html_document
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Lab 1 - Learning Tidy R With Census Data"
-author: "Michael Fichman, Matt Harris & Anna Duan"
+author: "Michael Fichman, Matt Harris"
 date: "August, 2024"
 output:
   html_document:
