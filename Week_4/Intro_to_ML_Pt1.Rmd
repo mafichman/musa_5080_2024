@@ -90,7 +90,7 @@ Let's examine our data - summarize the number of crimes of each type.
 ```{r EDA}
 
 bostonCrimes %>% 
-group_by(OFFENSE_CODE_GROUP) %>%
+  group_by(OFFENSE_CODE_GROUP) %>%
   summarize(count = n()) %>%
   arrange(-count) %>% 
   top_n(10) %>%
@@ -152,7 +152,7 @@ These are primary tools we use to add the local spatial signal to each of the po
 
 #### Buffer aggregate
 
-The first code in this block buffers each point in `boston.sf` by `660` ft and then uses `aggregate` to count the number of `bostonCrimes.sf` points within that buffer. There is a nested call to `mutate` to assign a value of `1` for each `bostonCrimes.sf` as under a column called `counter`. This allows each crime to have the same weight in when the `sun` function is called, but other weighting schemes could be used. Finally, the code `pull` pulls the aggregate values so they can be assigned as the `crimes.Buffer` column to `boston.sf`. This is a little different from how you had assigned new columns before (usually using `mutate`), but valid. Your new feature `crimes.Buffer` is a count of all the crimes within 660ft of each reported crime. Why would it be god to know this when building a model?  
+The first code in this block buffers each point in `boston.sf` by `660` ft and then uses `aggregate` to count the number of `bostonCrimes.sf` points within that buffer. There is a nested call to `mutate` to assign a value of `1` for each `bostonCrimes.sf` as under a column called `counter`. This allows each crime to have the same weight in when the `sum` function is called, but other weighting schemes could be used. Finally, the code `pull` pulls the aggregate values so they can be assigned as the `crimes.Buffer` column to `boston.sf`. This is a little different from how you had assigned new columns before (usually using `mutate`), but valid. Your new feature `crimes.Buffer` is a count of all the crimes within 660ft of each reported crime. Why would it be god to know this when building a model?  
 
 ```{r Features}
 
@@ -175,7 +175,7 @@ Using `st_coordinates()` within `mutate` converts the points to longitude/latitu
 
 If you put *polygon* features in there, it will error. Instead you can use `st_coordinates(st_centroid(YourPolygonSfObject))` to get nearest neighbors to a polygon centroid. -->
 
-The number `k` in the `nn_function()` function is the number of neighbors to to values from that are then averaged. Different types of crime (or anything else you measure) will require different values of `k`. *You will have to think about this!*. What could be the importance of `k` when you are making knn features for a violent crime versus and nuisance crime?
+The number `k` in the `nn_function()` function is the number of neighbors to values from that are then averaged. Different types of crime (or anything else you measure) will require different values of `k`. *You will have to think about this!*. What could be the importance of `k` when you are making knn features for a violent crime versus and nuisance crime?
 
 
 ```{r knn}
@@ -200,7 +200,8 @@ boston.sf <-
 
 ```{r assault density}
 ## Plot assault density
-ggplot() + geom_sf(data = nhoods, fill = "grey40") +
+ggplot() + 
+  geom_sf(data = nhoods, fill = "grey40") +
   stat_density2d(data = data.frame(st_coordinates(bostonCrimes.sf)), 
                  aes(X, Y, fill = ..level.., alpha = ..level..),
                  size = 0.01, bins = 40, geom = 'polygon') +
@@ -224,7 +225,7 @@ Note: the use of the `ggscatter()` function from the `ggpubr` package to plot th
 
 ```{r uni_variate_Regression}
 boston_sub_200k <- st_drop_geometry(boston.sf) %>% 
-filter(SalePrice <= 2000000) 
+  filter(SalePrice <= 2000000) 
 
 cor.test(boston_sub_200k$LivingArea,
          boston_sub_200k$SalePrice, 
@@ -266,14 +267,15 @@ boston.sf %>%
   st_drop_geometry() %>%
   mutate(Age = 2015 - YR_BUILT) %>%
   dplyr::select(SalePrice, LivingArea, Age, GROSS_AREA) %>%
-  filter(SalePrice <= 1000000, Age < 500) %>%
+  filter(SalePrice <= 1000000, 
+         Age < 500) %>%
   gather(Variable, Value, -SalePrice) %>% 
-   ggplot(aes(Value, SalePrice)) +
-     geom_point(size = .5) + 
+  ggplot(aes(Value, SalePrice)) +
+  geom_point(size = .5) + 
   geom_smooth(method = "lm", se=F, colour = "#FA7800") +
-     facet_wrap(~Variable, ncol = 3, scales = "free") +
-     labs(title = "Price as a function of continuous variables") +
-     theme_minimal()
+  facet_wrap(~Variable, ncol = 3, scales = "free") +
+  labs(title = "Price as a function of continuous variables") +
+  theme_minimal()
 ```
 
 ```{r crime_corr}
