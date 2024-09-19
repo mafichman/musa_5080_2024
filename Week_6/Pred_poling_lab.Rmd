@@ -240,7 +240,7 @@ vars_net <- abandonCars %>%
 > Review: what is NN and what does `k` represent in this function?
 
 ```{r}
-# convinience to reduce length of function names.
+# convenience to reduce length of function names.
 st_c    <- st_coordinates
 st_coid <- st_centroid
 
@@ -300,7 +300,7 @@ final_net <-
 
 ## Local Moran's I for fishnet grid cells
 
-using {spdep} package to to build neighborhood weights and list to calculate local Moran's I.
+Using {spdep} package to build neighborhood weights and list to calculate local Moran's I.
 
 Note that the code here is *different* than in the book - it has been updated to keep up with changes in packages.
 

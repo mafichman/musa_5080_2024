@@ -270,12 +270,12 @@ boston.sf %>%
   filter(SalePrice <= 1000000, 
          Age < 500) %>%
   gather(Variable, Value, -SalePrice) %>% 
-  ggplot(aes(Value, SalePrice)) +
-  geom_point(size = .5) + 
-  geom_smooth(method = "lm", se=F, colour = "#FA7800") +
-  facet_wrap(~Variable, ncol = 3, scales = "free") +
-  labs(title = "Price as a function of continuous variables") +
-  theme_minimal()
+   ggplot(aes(Value, SalePrice)) +
+     geom_point(size = .5) + 
+     geom_smooth(method = "lm", se=F, colour = "#FA7800") +
+     facet_wrap(~Variable, ncol = 3, scales = "free") +
+     labs(title = "Price as a function of continuous variables") +
+     theme_minimal()
 ```
 
 ```{r crime_corr}
@@ -317,7 +317,7 @@ ggcorrplot(
 numericVars %>% 
   correlate() %>% 
   autoplot() +
-  geom_text(aes(label = round(r,digits=2)),size = 2)
+  geom_text(aes(label = round(r, digits=2)),size = 2)
 
 ```
 
