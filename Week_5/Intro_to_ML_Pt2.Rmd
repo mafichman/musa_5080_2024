@@ -132,7 +132,7 @@ boston.test <-
 
 ```
 
-*What is the MAE?*
+*What is the MAE? Let's interpret this statistic.*
 
 ```{r}
 mean(boston.test$SalePrice.AbsError, na.rm = T)
@@ -152,7 +152,7 @@ Our error metrics are a product of the data that were sorted into our training a
 
 To set up an iteration of random 'folds' (in this case 100), we use our very same regression formula to train a different regression object `reg.cv` that is subjected to the cross-validation process for the whole data set.
 
-If you get warnings about a "rank deficient" matrix - you might have too many predictors for the number of observations.
+If you get warnings about a "rank deficient" matrix - you might have too many predictors for the number of observations. This is probably occurring because `Style` has so many levels.
 
 ```{r}
 fitControl <- trainControl(method = "cv", number = 100)
@@ -172,7 +172,7 @@ reg.cv
 ```
 `reg.cv` is an object that contains a data frame called `resample` with your folds and errors associated with them. You will use this to make a plot of your errors for the CV process.
 
-Here we can take a look at the first few rows of `reg.cv`
+Here we can take a look at the first few rows of `reg.cv` and we can see how these statistics differ from fold to fold.
 
 ```{r}
 reg.cv$resample[1:5,] %>%
@@ -184,7 +184,13 @@ reg.cv$resample[1:5,] %>%
 
 What is the relationship between errors? Are they clustered? Is the error of a single observation correlated with the error of nearby observations?
 
-We create a list of "neighbors" using a "spatial weights matrix".
+We need to look at the relationships between our observations and their neighbors to see if there is... SPATIAL AUTOCORRELATION.
+
+If we have spatial autocorrelation of our errors, that means that there is some spatial information that our model is not "explaining".
+
+To do this, we first create a list of "neighbors" using a "spatial weights matrix".
+
+We can use this technique to look at the "spatial lag" of nearby prices.
 
 ```{r}
 coords <- st_coordinates(boston.sf) 
@@ -197,6 +203,8 @@ boston.sf$lagPrice <- lag.listw(spatialWeights, boston.sf$SalePrice)
 
 ```
 
+
+Let's look at our test set - what's the relationship between the prediction error for a given house, and that of the neighborhing house. Do these look correlated when we make a scatter plot?
 
 
 ```{r}
@@ -217,7 +225,23 @@ boston.test %>%
 
 ```
 
+We can calculate the Pearson's R coefficient to test this a different way
+
+```{r}
+
+pearsons_test <- 
+  boston.test %>% 
+  mutate(lagPriceError = lag.listw(spatialWeights.test, SalePrice.Error))
+
+cor.test(pearsons_test$lagPriceError,
+         pearsons_test$SalePrice.Error, 
+         method = "pearson")
+
+```
+
 ## Do Errors Cluster? Using Moran's I
+
+We can assess the global degree of clustering or dispersion of sales price values by using the Moran's I statistic, which compares the degree of observed clustering to a simulated distribution of clustering.
 
 So - is your Moran's I statistic indicating dispersion (-1), randomness (0) or clustering (1)?
 
@@ -240,6 +264,10 @@ ggplot(as.data.frame(moranTest$res[c(1:999)]), aes(moranTest$res[c(1:999)])) +
 
 ## Predictions by neighborhood
 
+To test our model's generalizeability, we can summarize the predictions by neighborhood (which is called `Name` in our data set).
+
+*Can you adjust the code below to calculate the MAE and MAPE by neighborhood?*
+
 ```{r}
 boston.test %>%
 as.data.frame() %>%
@@ -252,7 +280,11 @@ as.data.frame() %>%
 
 ## Regression with neighborhood effects
 
-Let's try to run the regression again, but this time with a neighborhood fixed effect
+We noticed that we have some clustering in our errors. This means that some elements of the spatial process are unaccounted for - namely, the effect of neighborhood. Up until now, we are basically treating all of the houses as being same except for their structural characteristics, but if you've ever searched for a house or an apartment, you know that it's "location, location, location."
+
+Let's try to run the regression again, but this time with a neighborhood fixed effect...
+
+
 
 ```{r}
 reg.nhood <- lm(SalePrice ~ ., data = as.data.frame(boston.training) %>% 
@@ -260,7 +292,18 @@ reg.nhood <- lm(SalePrice ~ ., data = as.data.frame(boston.training) %>%
                                                Style, GROSS_AREA, NUM_FLOORS.cat,
                                                R_BDRMS, R_FULL_BTH, R_HALF_BTH, 
                                                R_KITCH, R_AC, R_FPLACE,crimes.Buffer))
+```
 
+Take a look at the summary, how does it compare to the last model?
+
+```{r}
+summary(reg.nhood)
+
+```
+
+Let's calculate our top-level error metrics for this new model.
+
+```{r}
 boston.test.nhood <-
   boston.test %>%
   mutate(Regression = "Neighborhood Effects",
@@ -272,7 +315,7 @@ boston.test.nhood <-
 
 ```
 
-How do these models compare? We can bind our error info together and then examine!
+How do these models compare? We can bind our error info together and then create a table to examine the MAE AND MAPE for each model.
 
 ```{r}
 bothRegressions <- 
@@ -283,6 +326,7 @@ bothRegressions <-
       mutate(lagPriceError = lag.listw(spatialWeights.test, SalePrice.Error)))  
 
 ```
+
 
 Why do these values differ from those in the book?
 
@@ -298,7 +342,11 @@ st_drop_geometry(bothRegressions) %>%
 
 ## Further examination of errors
 
-Predicted versus observed plots - what does it mean if the line is above or below y=x?
+Predicted versus observed plots are extremely useful for seeing what kinds of observations our model is predicting well, and which kinds it's not.
+
+*What does it mean if the line is above or below y=x?*
+
+*What are your observations about the differences in model performance?*
 
 ```{r}
 bothRegressions %>%
@@ -315,7 +363,10 @@ bothRegressions %>%
   theme_minimal()
 ```
 
-We can also examine the spatial pattern of errors.
+### Spatial evaluation of errors
+
+We can also examine the spatial pattern of errors, looking to see if we are performing equally well from neighborhood to neighborhood. Since we have our dataset `bothRegressions` - which has observed prices and predictions from each model, we can summarize by model, and by neighborhood, and map these predictions.
+
 
 ```{r}
 st_drop_geometry(bothRegressions) %>%
@@ -325,7 +376,7 @@ st_drop_geometry(bothRegressions) %>%
   left_join(nhoods, by = c("Name" = "neighborhood")) %>%
     st_sf() %>%
     ggplot() + 
-      geom_sf(aes(fill = mean.MAPE), color = "transparent") +
+      geom_sf(aes(fill = 100*mean.MAPE), color = "transparent") +
       geom_sf(data = bothRegressions, colour = "gray30", size = .5) +
       facet_wrap(~Regression) +
       scale_fill_gradient(low = palette5[1], high = palette5[5],
@@ -336,6 +387,7 @@ st_drop_geometry(bothRegressions) %>%
 ```
 
 ## Race and income context of predictions
+
 
 What is the race and income context of Boston census tracts, and how does this relate to our model performance?
 
