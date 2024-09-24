@@ -31,6 +31,10 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 ```
 
+Last week we learned to create OLS regression models to estimate housing prices by wrangling property records and spatial data to engineer independent variables that predict sales prices.
+
+This week, we are going to learn how to validate our models and understand our model errors. This will give us all the skills and code we need to put our midterm assignment together.
+
 ## Learning objectives
 
 - Build a training and testing environment to validate a regression model
@@ -52,7 +56,7 @@ Bring in a wrangled data set - it has some new variables already created.
 
 
 boston.sf <- st_read(file.path(root.dir,"/Chapter3_4/boston_sf_Ch1_wrangled.geojson")) %>% 
-  st_set_crs('ESRI:102286')
+  st_transform('ESRI:102286')
 
 nhoods <- 
   st_read("https://raw.githubusercontent.com/mafichman/musa_5080_2023/main/Week_4/neighborhoods/bost_nhoods.geojson") %>%
@@ -62,11 +66,17 @@ nhoods <-
 
 ## Split Data into Train/Test Set
 
-- What is the size of the split in the data partition?
+In order to assess model accuracy and generalizability, we split our data into "training" and "testing" sets using `createDataPartition`. We estimate a regression called `reg.training` using a combination of variables representing housing characteristics, spatial "exposure" to disamenities, and some spatial fixed effects (aka "dummy variables").
 
-- What do the errors messages mean?  If there is a single record in a category - it gets sorted into the training set. Why??
+Let's walk through the process a step at a time.
 
 - Can you figure out what's going on when we create our error metrics?
+
+Create a train/test setup.
+
+*- What is the size of the split in the data partition?*
+
+*- What do the errors messages mean?  If there is a single record in a category - it gets sorted into the training set. Why??*
 
 ```{r}
 
@@ -74,16 +84,33 @@ inTrain <- createDataPartition(
               y = paste(boston.sf$Name, boston.sf$NUM_FLOORS.cat, 
                         boston.sf$Style, boston.sf$R_AC), 
               p = .60, list = FALSE)
+
+
 boston.training <- boston.sf[inTrain,] 
 boston.test <- boston.sf[-inTrain,]  
- 
+```
+Estimate a regression:
+
+*- Look at the variables in our model, what is `Name` and why do we use this variable?*
+
+
+```{r}
 reg.training <- 
   lm(SalePrice ~ ., data = as.data.frame(boston.training) %>% 
                              dplyr::select(SalePrice, LivingArea, Style, 
                                            GROSS_AREA, NUM_FLOORS.cat,
                                            R_BDRMS, R_FULL_BTH, R_HALF_BTH, 
                                            R_KITCH, R_AC, R_FPLACE, crimes.Buffer, Name))
+```
 
+
+```{r}
+
+summary(reg.training)
+
+```
+
+```{r}
 boston.test <-
   boston.test %>%
   mutate(Regression = "Baseline Regression",
