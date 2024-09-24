@@ -33,7 +33,9 @@ palette5 <- c("#25CB10", "#5AB60C", "#8FA108",   "#C48C04", "#FA7800")
 
 Last week we learned to create OLS regression models to estimate housing prices by wrangling property records and spatial data to engineer independent variables that predict sales prices.
 
-This week, we are going to learn how to validate our models and understand our model errors. This will give us all the skills and code we need to put our midterm assignment together.
+This week, we are going to learn how to validate our models and understand our model errors. Specifically, we are going to measure overall accuracy, and accuracy across geographic and thematic contexts in our data set. 
+
+This will give us all the skills and code we need to put our midterm assignment together.
 
 ## Learning objectives
 
@@ -49,7 +51,7 @@ This week, we are going to learn how to validate our models and understand our m
 
 ## Data Loading
 
-Bring in a wrangled data set - it has some new variables already created. Use the `glimpse` command to examine the data. The variable titles are fairly self-explanatory.
+Bring in a wrangled version of our Boston housing prices data set. You will see that we have some new variables we didn't have last week - they are engineered versions of the existing data (a categorical definition of number of floors, for example), and some of our spatial variables about crime - like knn variables based on nearby assault incidents. Use the `glimpse` command to examine the data. The variable titles are fairly self-explanatory.
 
 *Note - loading `boston.sf` is a bit funky here, because the geojson is saved in WGS84 with coordinates in the ESRI:102286 cref. This makes it hard to handle with st_read, so it's coerced to data frame and back to sf*
 
@@ -243,6 +245,8 @@ cor.test(pearsons_test$lagPriceError,
 
 We can assess the global degree of clustering or dispersion of sales price values by using the Moran's I statistic, which compares the degree of observed clustering to a simulated distribution of clustering.
 
+Consider the simulation in this way - if you took all the values in the data set, and shook them up and randomly threw them back on the map - what would the level of clustering or dispersion would you observe?
+
 So - is your Moran's I statistic indicating dispersion (-1), randomness (0) or clustering (1)?
 
 
@@ -388,21 +392,35 @@ st_drop_geometry(bothRegressions) %>%
 
 ## Race and income context of predictions
 
-
 What is the race and income context of Boston census tracts, and how does this relate to our model performance?
+
+We can call some ACS data from `tidycensus` and segment the city into different tract typologies - majority white, high income, low income, and so on.
+
+The income cutoff here refers (I believe) to the mean of the tract Median_Income across Boston.
 
 ```{r}
 tracts17 <- 
-  get_acs(geography = "tract", variables = c("B01001_001E","B01001A_001E","B06011_001"), 
-          year = 2017, state=25, county=025, geometry=T, output = "wide") %>%
+  get_acs(geography = "tract", 
+          variables = c("B01001_001E","B01001A_001E","B06011_001"), 
+          year = 2017, 
+          state=25, 
+          county=025, 
+          geometry=T, 
+          output = "wide") %>%
   st_transform('ESRI:102286')  %>%
   rename(TotalPop = B01001_001E,
          NumberWhites = B01001A_001E,
          Median_Income = B06011_001E) %>%
   mutate(percentWhite = NumberWhites / TotalPop,
          raceContext = ifelse(percentWhite > .5, "Majority White", "Majority Non-White"),
-         incomeContext = ifelse(Median_Income > 32322, "High Income", "Low Income"))
+         incomeContext = ifelse(Median_Income > 35322, "High Income", "Low Income"))
+```
 
+
+Let's create a context map so we can see what areas these are.
+
+
+```{r}
 grid.arrange(ncol = 2,
   ggplot() + geom_sf(data = na.omit(tracts17), aes(fill = raceContext), color = "transparent") +
     scale_fill_manual(values = c("olivedrab", "orange"), name="Race Context") +
@@ -415,11 +433,15 @@ grid.arrange(ncol = 2,
 
 ```
 
+We can now summarize our predictions by tract type - joining our sf objects `bothRegressions` and `tracts17` and calculating the mean MAPE for each regression type and each tract typology.
+
+*How do you think our models are performing?*
+
 ```{r}
 st_join(bothRegressions, tracts17) %>% 
   filter(!is.na(incomeContext)) %>%
   group_by(Regression, incomeContext) %>%
-  summarize(mean.MAPE = scales::percent(mean(SalePrice.APE, na.rm = T))) %>%
+  summarize(mean.MAPE = 100*(mean(SalePrice.APE, na.rm = T))) %>%
   st_drop_geometry() %>%
   spread(incomeContext, mean.MAPE) %>%
   pander(caption = "Test set MAPE by neighborhood income context")
