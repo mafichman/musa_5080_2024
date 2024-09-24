@@ -49,14 +49,17 @@ This week, we are going to learn how to validate our models and understand our m
 
 ## Data Loading
 
-Bring in a wrangled data set - it has some new variables already created.
+Bring in a wrangled data set - it has some new variables already created. Use the `glimpse` command to examine the data. The variable titles are fairly self-explanatory.
+
+*Note - loading `boston.sf` is a bit funky here, because the geojson is saved in WGS84 with coordinates in the ESRI:102286 cref. This makes it hard to handle with st_read, so it's coerced to data frame and back to sf*
 
 ```{r read_data, results='hide'}
 #https://github.com/urbanSpatial/Public-Policy-Analytics-Landing/tree/master/DATA/Chapter3_4
 
 
 boston.sf <- st_read(file.path(root.dir,"/Chapter3_4/boston_sf_Ch1_wrangled.geojson")) %>% 
-  st_transform('ESRI:102286')
+  as.data.frame() %>%
+  st_as_sf(crs = 'ESRI:102286')
 
 nhoods <- 
   st_read("https://raw.githubusercontent.com/mafichman/musa_5080_2023/main/Week_4/neighborhoods/bost_nhoods.geojson") %>%
@@ -91,7 +94,7 @@ boston.test <- boston.sf[-inTrain,]
 ```
 Estimate a regression:
 
-*- Look at the variables in our model, what is `Name` and why do we use this variable?*
+*- Discuss the variables in our model ... *
 
 
 ```{r}
@@ -100,15 +103,22 @@ reg.training <-
                              dplyr::select(SalePrice, LivingArea, Style, 
                                            GROSS_AREA, NUM_FLOORS.cat,
                                            R_BDRMS, R_FULL_BTH, R_HALF_BTH, 
-                                           R_KITCH, R_AC, R_FPLACE, crimes.Buffer, Name))
+                                           R_KITCH, R_AC, R_FPLACE, crimes.Buffer))
 ```
 
+*Examine the summary... what do you think?*
 
 ```{r}
 
 summary(reg.training)
 
 ```
+
+Let's use the `predict` function to generate estimates for the houses in our test set `boston.test` using our model `reg.training` inside a `mutate` function.
+
+By comparing our estimate `SalePrice.Predict` to the known `SalePrice` - we can make various error metrics.
+
+*What are the metrics we are creating here?*
 
 ```{r}
 boston.test <-
@@ -122,14 +132,14 @@ boston.test <-
 
 ```
 
-What is the MAE?
+*What is the MAE?*
 
 ```{r}
 mean(boston.test$SalePrice.AbsError, na.rm = T)
 
 ```
 
-How about the MAPE?
+*How about the MAPE?*
 
 ```{r}
 mean(boston.test$SalePrice.APE, na.rm = T)
@@ -137,6 +147,8 @@ mean(boston.test$SalePrice.APE, na.rm = T)
 ```
 
 ## Cross-Validation
+
+Our error metrics are a product of the data that were sorted into our training and test sets. If you were to do this analysis using another random subset, your model specifications would be slightly different, and your MAE and MAPE would be different as well.  So... on average, how well do we do using these model parameters? We use random k-fold cross-validation.
 
 To set up an iteration of random 'folds' (in this case 100), we use our very same regression formula to train a different regression object `reg.cv` that is subjected to the cross-validation process for the whole data set.
 
@@ -160,6 +172,8 @@ reg.cv
 ```
 `reg.cv` is an object that contains a data frame called `resample` with your folds and errors associated with them. You will use this to make a plot of your errors for the CV process.
 
+Here we can take a look at the first few rows of `reg.cv`
+
 ```{r}
 reg.cv$resample[1:5,] %>%
   pander()
@@ -170,7 +184,7 @@ reg.cv$resample[1:5,] %>%
 
 What is the relationship between errors? Are they clustered? Is the error of a single observation correlated with the error of nearby observations?
 
-We create a list of "neigbhors" using a "spatial weights matrix".
+We create a list of "neighbors" using a "spatial weights matrix".
 
 ```{r}
 coords <- st_coordinates(boston.sf) 
