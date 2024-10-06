@@ -1,9 +1,11 @@
 ---
 title: 'ML #3 Predictive Policing'
 author: "Prof. Fichman & Prof. Harris"
-date: "9/29/2023"
+date: "10/5/2024"
 output: html_document
 ---
+
+This markdown contains the code for running a spatial predictive model to forecast crime (or other count data) in space. It is the code that will serve as a basis for your third homework, where you will alter this workflow to model a different outcome of interest using a wider variety of spatial predictors. One important thing to note, is that the modeling process in this workflow is *inside* a custom function from the book that is designed to work with spatial data. This is an unusual workflow - we will build a model, but we won't be looking at any tables of model outputs like we have in previous week. This is purely about prediction accuracy and error to do a beginner's pass at spatial risk modeling.
 
 We are going to run through the code base with just a couple variables in a model - in a slightly simplified workflow.
 
@@ -52,9 +54,9 @@ source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-L
 
 ## Read in Data from Chicago
 
-This uses the Socrata package for some data sets.
+This uses the Socrata package for some data sets. Socrata is sometimes known as "SODA" - Socrata Open Data API. It's a common service used by municipalities to serve their open data using an Application Porgramming Interface.
 
-Note where we bring in burglary data - you will want to vary this part to do your homework!
+We begin by loading data on police districts and police beats in GeoJSON format and transforming and cleaning it.
 
 ```{r}
 policeDistricts <- 
@@ -69,7 +71,19 @@ policeBeats <-
 
 bothPoliceUnits <- rbind(mutate(policeDistricts, Legend = "Police Districts"), 
                          mutate(policeBeats, Legend = "Police Beats"))
+```
 
+Now we bring in our burglary data. 
+
+Pay close attention to how this is done - you will want to vary this part to do your homework!
+
+We have an elaborate cleaning routine to `filter` for `Primary.Type` of crime, and parse the x and y data into lat/lon (e.g. crs = 4326) coordinates that `sf` can handle. We remove duplicates using the `distinct` function.
+
+*Why did we clean the data this way?*
+
+Because we loaded it from scratch and this is the pipeline that *works* - for you, it might look different on your assignment.
+
+```{r}
 burglaries <- 
   read.socrata("https://data.cityofchicago.org/Public-Safety/Crimes-2017/d62x-nvdr") %>% 
     filter(Primary.Type == "BURGLARY" & Description == "FORCIBLE ENTRY") %>%
@@ -80,7 +94,11 @@ burglaries <-
     st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant")%>%
     st_transform('ESRI:102271') %>% 
     distinct()
+```
 
+We also read in our municipal boundary, which is included with the book data.
+
+```
 chicagoBoundary <- 
   st_read(file.path(root.dir,"/Chapter5/chicagoBoundary.geojson")) %>%
   st_transform('ESRI:102271') 
@@ -88,11 +106,7 @@ chicagoBoundary <-
 
 ## visualizing point data
 
-Plotting point data and density
-
-> How do we analyze point data?
-
-> Are there other geometries useful to represent point locations?
+Let's plot point data and density - examining our outcome of interest.
 
 ```{r fig.width=6, fig.height=4}
 # uses grid.arrange to organize independent plots
@@ -125,6 +139,8 @@ Examine the fishnet - the unique ID is crucial to building a data set!
 ```{r}
 ## using {sf} to create the grid
 ## Note the `.[chicagoBoundary] %>% ` line. This is needed to clip the grid to our data
+
+
 fishnet <- 
   st_make_grid(chicagoBoundary,
                cellsize = 500, 
@@ -138,7 +154,11 @@ fishnet <-
 
 ### Aggregate points to the fishnet
 
-> How can we aggregate points into a fishnet grid?
+We can aggregate our points to the fishnet using the `aggregate` command, but there are other ways to do this - including using spatial joins with `sf`.
+
+Note that we do a little trick here where rather than using a `tally` or `sum` command, we assign each burglary a column called `countBurglaries` and set it equal to `1`. As we `aggregate` we sum this quantity.
+
+We also assign a `uniqueID` and a `cvID` here.
 
 ```{r}
 ## add a value of 1 to each crime, sum them with aggregate
@@ -150,13 +170,20 @@ crime_net <-
          uniqueID = 1:n(),
          cvID = sample(round(nrow(fishnet) / 24), 
                        size=nrow(fishnet), replace = TRUE))
+```
 
+
+```{r}
 ggplot() +
   geom_sf(data = crime_net, aes(fill = countBurglaries), color = NA) +
   scale_fill_viridis() +
   labs(title = "Count of Burglaires for the fishnet") +
   mapTheme()
+```
 
+As an aside - if you haven't seen this yet this semester, the `mapview` package is a very nice webmapping viewer in R Studio - try it out.
+
+```{r}
 # For demo. requires updated mapview package
 # xx <- mapview::mapview(crime_net, zcol = "countBurglaries")
 # yy <- mapview::mapview(mutate(burglaries, ID = seq(1:n())))
