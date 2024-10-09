@@ -342,7 +342,9 @@ final_net <-
 
 ## Local Moran's I for fishnet grid cells
 
-OK - now we get to the creation of the `secret sauce` of spatial predictive modeling - harnessing Local Moran's I - seeing whether cells are part of a significant cluster of high or low values. We will use the {spdep} package to build neighborhood weights and list to calculate local Moran's I.
+OK - now we get to the creation of the `secret sauce` of spatial predictive modeling - harnessing Local Moran's I - seeing whether cells are part of a significant cluster of high or low values... or whether a cell is near a cluster. Our hypothesis is that this predicts the presence of incidents in a given cell.
+
+We will use the {spdep} package to build neighborhood weights and list to calculate local Moran's I.
 
 Note that the code here is *different* than in the book - it has been updated to keep up with changes in packages.
 
@@ -385,7 +387,7 @@ final_net.localMorans <-
 
 ### Plotting local Moran's I results
 
-This is a complex code chunk - it's a loop which builds ggplots of local Moran's for each of your `vars`
+This is a complex code chunk - it's a loop which builds ggplots of local Moran's for each of your `vars` - this may come in handy for making plots in your assignment, and it's very useful for checking out the spatial process.
 
 > What does a significant hot spot tell us about the distribution of burglaries?
 
@@ -408,7 +410,7 @@ do.call(grid.arrange,c(varList, ncol = 4, top = "Local Morans I statistics, Burg
 
 ## Distance to Hot spot
 
-Using NN distance to a hot spot location
+How can we parameterize these data? Let's "ask" each cell how far it is from the nearest hotspot.
 
 ```{r}
 # generates warning from NN
@@ -421,7 +423,6 @@ final_net <- final_net %>%
                                            abandoned.isSig == 1))), 
                        k = 1))
 
-## What does k = 1 represent?
 ```
 
 > What does `k = 1` above mean in terms of measuring nearest neighbors?
@@ -438,15 +439,17 @@ ggplot() +
 
 ## Modeling and CV
 
-OK - this is a tricky bit.
+OK - this is a trickiest bit of this code base.
 
 Our model is actually made inside this custom function from the book called `crossValidate` that is designed to work with spatial data. 
 
-What it does is take a `dataset`, a dependent variable `dependentVariable`, a list of independent variables `indVariables` (we feed it a list called `reg.ss.vars` here) an `id` - which is a cross validation category. It both runs a poisson model AND does a cross-validation process where it trains and tests the model on geographic holdout sets. It returns an sf object, in this case called `reg.ss.spatialCV`. 
+`crossValidate` takes a `dataset`, a dependent variable `dependentVariable` (`countBurglaries`), a list of independent variables `indVariables` (we feed it a list called `reg.ss.vars` here) an `id` - which is a cross validation category. 
+
+The function runs a poisson model AND does a cross-validation process where it trains and tests the model on geographic holdout sets. It returns an sf object, in this case called `reg.ss.spatialCV`.  This is a purely results-oriented process - engineering on the front end and predictions on the back end.
 
 If you want to see how it works, run the code `View(crossValidate)` to see the code behind the function.
 
-Leave One Group Out CV on spatial features
+Let's perform Leave One Group Out (LOGO) CV on these spatial features
 
 ```{r results='hide'}
 
@@ -465,6 +468,10 @@ reg.ss.spatialCV <- crossValidate(
 ```
 
 ### Calculating Errors across space
+
+Remeber our `cvID` - where we imparted the neighborhood name to each cell? We can `group_by` this ID and calculate summary error statistics like MAE and Mean_Error...
+
+Why aren't we looking at MAPE?
 
 ```{r}
 # calculate errors by NEIGHBORHOOD
@@ -492,6 +499,8 @@ error_by_reg_and_fold %>%
 
 ## Density vs predictions
 
+OK - we are finally to the end of the workflow - where we make Kernel Density estimates (e.g. a hotspot map) and compare our predictions to see if we beat the accuracy of the "industry standard" approach.
+
 The `spatstat.explore` package's `density.ppp` function gets us kernel density estimates with varying search radii. We can use these to compare accuracy with our predictions - we can join them to our `final_net` and them compare estimates.
 
 Note that the code here is *different* than in the book - it has been updated to keep up with changes in packages.
@@ -508,7 +517,11 @@ burg_KD.df <- rbind(
   mutate(data.frame(rasterToPoints(mask(raster(burg_KD.2000), as(neighborhoods, 'Spatial')))), Legend = "2000 Ft.")) 
 
 burg_KD.df$Legend <- factor(burg_KD.df$Legend, levels = c("1000 Ft.", "1500 Ft.", "2000 Ft."))
+```
 
+Now we can map this using `geom_raster` - who knew there was such a thing?
+
+```{r}
 ggplot(data=burg_KD.df, aes(x=x, y=y)) +
   geom_raster(aes(fill=layer)) + 
   facet_wrap(~Legend) +
@@ -532,6 +545,8 @@ as.data.frame(burg_KD.1000) %>%
 ```
 
 ## Get 2018 crime data
+
+OK - the final test - does our model forecast for the following year (2018) better than a kernel density estimate (this assumes that the PD are using ongoing density estimates as their metric).
 
 Let's see how our model performed relative to KD on the following year's data.
 
