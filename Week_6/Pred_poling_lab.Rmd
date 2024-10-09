@@ -98,7 +98,7 @@ burglaries <-
 
 We also read in our municipal boundary, which is included with the book data.
 
-```
+```{r}
 chicagoBoundary <- 
   st_read(file.path(root.dir,"/Chapter5/chicagoBoundary.geojson")) %>%
   st_transform('ESRI:102271') 
@@ -204,6 +204,8 @@ OK, so we need to build some features that will predict the count of burglaries 
 
 Let's start by pulling in a single variable for our model, keeping it simple to start - abandoned vehicles.
 
+Check out the City of Chicago's open data site to build variables for your model - https://data.cityofchicago.org/
+
 ```{r}
 ## only pulling a single variable for our model to keep it simple
 ## using Socrata again
@@ -281,6 +283,8 @@ I like to think about raster (or in this case fishnet) operations in this way - 
 
 Let's create nearest neighbor features by "asking" each cell centroid to return the average distance to the k nearest abandoned cars.
 
+Keep in mind that changing the "k" value will affect your model - so you can tinker with this part to see if you can improve your outputs at the end of the code workflow.
+
 ```{r}
 ## create NN from abandoned cars
 vars_net <- vars_net %>%
@@ -288,8 +292,6 @@ vars_net <- vars_net %>%
                                            st_coordinates(abandonCars),
                                            k = 3))
 ```
-
-> What changes if we make `k` a different number?
 
 ```{r}
 ## Visualize the NN feature
@@ -410,7 +412,9 @@ do.call(grid.arrange,c(varList, ncol = 4, top = "Local Morans I statistics, Burg
 
 ## Distance to Hot spot
 
-How can we parameterize these data? Let's "ask" each cell how far it is from the nearest hotspot.
+How can we parameterize these data? Let's "ask" each cell how far it is from the nearest hotspot. 
+
+How do we do this? If the `local_morans` is less than 0.001, we assign a value of 1 to a variable we create about abandoned car clustering significance called. `abandoned.isSig`... then we do a k-nearest neighbor function to "ask" cell centroids how far they are from the k=1 nearest abandoned.isSig == 1
 
 ```{r}
 # generates warning from NN
@@ -445,11 +449,11 @@ Our model is actually made inside this custom function from the book called `cro
 
 `crossValidate` takes a `dataset`, a dependent variable `dependentVariable` (`countBurglaries`), a list of independent variables `indVariables` (we feed it a list called `reg.ss.vars` here) an `id` - which is a cross validation category. 
 
-The function runs a poisson model AND does a cross-validation process where it trains and tests the model on geographic holdout sets. It returns an sf object, in this case called `reg.ss.spatialCV`.  This is a purely results-oriented process - engineering on the front end and predictions on the back end.
+The function runs a poisson model AND does a cross-validation process. If we specify "name" (which is our neighborhood) it trains on all but one holdout neighborhood (or "fold") and tests the model on geographic holdout sets. It returns an sf object, in this case called `reg.ss.spatialCV`. This is a purely results-oriented process - engineering on the front end and predictions on the back end.
 
 If you want to see how it works, run the code `View(crossValidate)` to see the code behind the function.
 
-Let's perform Leave One Group Out (LOGO) CV on these spatial features
+Let's perform Leave One Group Out (LOGO) spatial CV on these spatial features using only our nn, and dist to cluster variables.
 
 ```{r results='hide'}
 
@@ -469,9 +473,13 @@ reg.ss.spatialCV <- crossValidate(
 
 ### Calculating Errors across space
 
-Remeber our `cvID` - where we imparted the neighborhood name to each cell? We can `group_by` this ID and calculate summary error statistics like MAE and Mean_Error...
+When we ran our LOGO-CV model, we specified neighborhood name as our `cvID`` - where we imparted the neighborhood name to each cell?`. 
 
-Why aren't we looking at MAPE?
+We can `group_by` this ID and calculate summary error statistics like MAE and Mean_Error...
+
+For your homework - you will need to calculate error across neighborhood context - relating census info to the neighborhoods (see section 5.5.3 in the book) - keep in mind this is a step we don't cover in lab.
+
+While we look at our errors here - why aren't we looking at MAPE?
 
 ```{r}
 # calculate errors by NEIGHBORHOOD
@@ -566,13 +574,19 @@ burglaries18 <-
   .[fishnet,]
 ```
 
+So the question is whether our 2017 model predicts better than a KD estimate on 2017 data for 2018 incidents. We are going to summarize the KDE values into a fishnet... and then break them into five classes - highest incident frequency being "Risk Category == 1".
+
 ```{r}
 
 burg_KDE_sum <- as.data.frame(burg_KD.1000) %>%
   st_as_sf(coords = c("x", "y"), crs = st_crs(final_net)) %>%
   aggregate(., final_net, mean) 
+
+
 kde_breaks <- classIntervals(burg_KDE_sum$value, 
                              n = 5, "fisher")
+
+
 burg_KDE_sf <- burg_KDE_sum %>%
   mutate(label = "Kernel Density",
          Risk_Category = classInt::findCols(kde_breaks),
@@ -589,7 +603,9 @@ burg_KDE_sf <- burg_KDE_sum %>%
   dplyr::select(label, Risk_Category, burgCount)
 ```
 
-Note that this is different from the book, where we pull a model out of a list of models we've created. For your homework, you'll be creating multiple models.
+We do the same for our predictions:
+
+Note that this is different from the book, where we pull a model out of a list of models we've created. For your homework, you'll only be making one model.
 
 ```{r}
 ml_breaks <- classIntervals(reg.ss.spatialCV$Prediction, 
@@ -613,6 +629,10 @@ burg_risk_sf <-
 
 We don't do quite as well because we don't have very many features, but still pretty good.
 
+We can see that the KD is a bit of a "smooshed" version of the point pattern, while the risk predictions are a bit sharper.
+
+In your homework, you'll be using more predictors and being more particular, so I expect you might do better.
+
 ```{r}
 rbind(burg_KDE_sf, burg_risk_sf) %>%
   na.omit() %>%
@@ -626,6 +646,8 @@ rbind(burg_KDE_sf, burg_risk_sf) %>%
          subtitle="2017 burglar risk predictions; 2018 burglaries") +
     mapTheme(title_size = 14)
 ```
+
+OK... drumroll please... how did we do? And maybe more importantly, what does a person who needs to commit to a modeling or policing strategy think of this model or this approach?
 
 ```{r}
 rbind(burg_KDE_sf, burg_risk_sf) %>%
