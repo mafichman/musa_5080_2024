@@ -477,7 +477,11 @@ When we ran our LOGO-CV model, we specified neighborhood name as our `cvID`` - w
 
 We can `group_by` this ID and calculate summary error statistics like MAE and Mean_Error...
 
-For your homework - you will need to calculate error across neighborhood context - relating census info to the neighborhoods (see section 5.5.3 in the book) - keep in mind this is a step we don't cover in lab.
+For your homework - you will need to generate two items related to this:
+
+1. A map of your errors by fold? `error_by_reg_and_fold` is an sf object - let's see the errors in space.
+
+2. calculate error across neighborhood context - relating census info to the neighborhoods (see section 5.5.3 in the book) - keep in mind this is a step we don't cover in lab, but it's simple to do.
 
 While we look at our errors here - why aren't we looking at MAPE?
 
@@ -504,6 +508,7 @@ error_by_reg_and_fold %>%
     labs(title="Distribution of MAE", subtitle = "LOGO-CV",
          x="Mean Absolute Error", y="Count") 
 ```
+
 
 ## Density vs predictions
 
