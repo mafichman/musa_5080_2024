@@ -75,13 +75,13 @@ bothPoliceUnits <- rbind(mutate(policeDistricts, Legend = "Police Districts"),
 
 Now we bring in our burglary data. 
 
-Pay close attention to how this is done - you will want to vary this part to do your homework!
+Pay close attention to how this is done - you will want to vary this part to do your homework - filtering for different types of incidents to be the basis of your model.
 
 We have an elaborate cleaning routine to `filter` for `Primary.Type` of crime, and parse the x and y data into lat/lon (e.g. crs = 4326) coordinates that `sf` can handle. We remove duplicates using the `distinct` function.
 
 *Why did we clean the data this way?*
 
-Because we loaded it from scratch and this is the pipeline that *works* - for you, it might look different on your assignment.
+Because we loaded it from scratch and this is the pipeline that *works* here. It might look different on your assignment - you can try this one step at a time, load the data, examine it, then filter it, then mutate, etc.,
 
 ```{r}
 burglaries <- 
@@ -172,6 +172,7 @@ crime_net <-
                        size=nrow(fishnet), replace = TRUE))
 ```
 
+Let's make a map of our outcomes in the fishnet.
 
 ```{r}
 ggplot() +
@@ -193,11 +194,15 @@ As an aside - if you haven't seen this yet this semester, the `mapview` package 
 
 ## Modeling Spatial Features
 
+OK, so we need to build some features that will predict the count of burglaries in a given cell.
+
 > What features would be helpful in predicting the location of burglaries?
 >
-> What might these features be problematic?
+> What about these features might be problematic?
 >
 > hint: for all the reasons we learned in class
+
+Let's start by pulling in a single variable for our model, keeping it simple to start - abandoned vehicles.
 
 ```{r}
 ## only pulling a single variable for our model to keep it simple
@@ -210,7 +215,11 @@ abandonCars <-
     st_as_sf(coords = c("X", "Y"), crs = 4326, agr = "constant") %>%
     st_transform(st_crs(fishnet)) %>%
     mutate(Legend = "Abandoned_Cars")
+```
 
+Let's also load a shape representing neighborhoods in Chicago - we can use this later to see if our model is performing well in one neighborhood or another, or to cross-validate our data.
+
+```{r}
 ## Neighborhoods to use in LOOCV in a bit
 neighborhoods <- 
   st_read("https://raw.githubusercontent.com/blackmad/neighborhoods/master/chicago.geojson") %>%
@@ -220,7 +229,11 @@ neighborhoods <-
 
 ### How we aggregate a feature to our fishnet
 
-This is an important chunk of code with some unfamiliar lines. The overall to assign the fishnet ID to each abandoned car point, group the points by fishnet ID and count them per ID, join that count back to the fishnet and then go from a long format to a wide format. We'll step through it:
+This is an important chunk of code with some unfamiliar lines. The overall goal is to assign the fishnet ID to each abandoned car point, group the points by fishnet ID and count them per ID, join that count back to the fishnet and then go from a long format to a wide format. We'll step through it:
+
+*  `vars_net <- abandonCars `
+
+* We are going to create an object called `vars_net` - refer to the code in the book to see how you can put all your spatial variables in vars_net in this first step with an `rbind` command.
 
 *   `st_join(fishnet, join=st_within)`
 
@@ -264,17 +277,15 @@ vars_net <- abandonCars %>%
 
 ## Nearest Neighbor Feature
 
-> Review: what is NN and what does `k` represent in this function?
+I like to think about raster (or in this case fishnet) operations in this way - if you "ask" a raster cell something about itself or its surroundings.
+
+Let's create nearest neighbor features by "asking" each cell centroid to return the average distance to the k nearest abandoned cars.
 
 ```{r}
-# convenience to reduce length of function names.
-st_c    <- st_coordinates
-st_coid <- st_centroid
-
 ## create NN from abandoned cars
 vars_net <- vars_net %>%
-    mutate(Abandoned_Cars.nn = nn_function(st_c(st_coid(vars_net)), 
-                                           st_c(abandonCars),
+    mutate(Abandoned_Cars.nn = nn_function(st_coordinates(st_centroid(vars_net)), 
+                                           st_coordinates(abandonCars),
                                            k = 3))
 ```
 
@@ -285,7 +296,11 @@ vars_net <- vars_net %>%
 vars_net.long.nn <- 
   dplyr::select(vars_net, ends_with(".nn")) %>%
     gather(Variable, value, -geometry)
+```
 
+Let's visualize these data.
+
+```{r}
 ggplot() +
       geom_sf(data = vars_net.long.nn, aes(fill=value), colour=NA) +
       scale_fill_viridis(name="NN Distance") +
@@ -327,15 +342,15 @@ final_net <-
 
 ## Local Moran's I for fishnet grid cells
 
-Using {spdep} package to build neighborhood weights and list to calculate local Moran's I.
+OK - now we get to the creation of the `secret sauce` of spatial predictive modeling - harnessing Local Moran's I - seeing whether cells are part of a significant cluster of high or low values. We will use the {spdep} package to build neighborhood weights and list to calculate local Moran's I.
 
 Note that the code here is *different* than in the book - it has been updated to keep up with changes in packages.
-
-> What is the difference between local and global Moran's I?
 
 A little in depth version of the chunk below can be found:
 
 Mendez C. (2020). Spatial autocorrelation analysis in R. R Studio/RPubs. Available at <https://rpubs.com/quarcs-lab/spatial-autocorrelation>
+
+We start by making a "spatial weights matrix" to codify information about the neighborhoods of cells, using "queen" neighbors (e.g. the cells to the immediate north, south, east, west and diagonal to you)
 
 ```{r}
 ## generates warnings from PROJ issues
@@ -346,6 +361,10 @@ final_net.weights <- nb2listw(final_net.nb, style="W", zero.policy=TRUE)
 
 # print(final_net.weights, zero.policy=TRUE)
 ```
+
+We get our Local Moran's I values for Abandoned_Cars using `localmoran` and then `cbind` the results to our `final_net` and mutate a variable that indicates whether a cell is in a `Significant_Hotspots` of Abandoned_Cars  - this will be a key predictor for us.
+
+Questions on how this works - see `?localmoran` for documentation.
 
 ```{r}
 ## see ?localmoran
@@ -397,8 +416,8 @@ final_net <- final_net %>%
   mutate(abandoned.isSig = 
            ifelse(local_morans[,5] <= 0.001, 1, 0)) %>%
   mutate(abandoned.isSig.dist = 
-           nn_function(st_c(st_coid(final_net)),
-                       st_c(st_coid(filter(final_net, 
+           nn_function(st_coordinates(st_centroid(final_net)),
+                       st_coordinates(st_centroid(filter(final_net, 
                                            abandoned.isSig == 1))), 
                        k = 1))
 
