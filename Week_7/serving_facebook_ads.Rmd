@@ -184,7 +184,7 @@ summary(advertisingModel)
 
 ```
 
-## Discussion 3
+## Discussion 2
 
 Observe the output of the first model, and **using the code chunk below play around with the variables you decide to include and exclude. Run the model, and then the subsequent line of code which produces goodness of fit metrics.** How is your McFadden R-squared? It's kind of a pseudo-R-squared, not quite interpretable like R-squared for `lm` models. But the closer to 1, generally the better.
 
